@@ -32,7 +32,7 @@ static uint32_t lastIdleDiagMs = -IDLE_DIAG_INTERVAL_MS;
 static double forceLeft = 0, forceRight = 0; // latest force in counts, positive = forward (0 if sensors off)
 
 
-static bool controlActive() { return stateArmed && stateZeroed && stateConfirmed && stateEnabled; }
+static bool controlActive() { return stateArmed && stateCalibrated && stateEnabled; }
 
 // // ===========================================================================
 // // Banner / help
@@ -154,6 +154,8 @@ void setup() {
   }
   motorBus.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(250);
+
+  // TODO : pins connectivity check
 
   reset();
 }

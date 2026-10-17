@@ -28,6 +28,7 @@ static bool lineOverflowed = false;
 
 
 // ---- Command helpers ----
+
 void reset() {
 
   resetAllStates();
@@ -35,15 +36,21 @@ void reset() {
   if (!rsStopBothMotors()) latch("boot STOP/OFF failed");
   
   // printBanner();
-  if (!stateLatched) {
-    log_i("AUTO-TARE: fixed bench neutral, %s, motors OFF",
-      USE_FORCE_SENSORS ? "both sensors unloaded/stationary" : "force sensors disabled (home only)");
-    tare();
-  }
-  if (stateZeroed) syncHomes();
-  Serial.println(stateZeroed && !stateLatched
-    ? "READY DISARMED: choose 'speed', confirm cutoff/hard stops/clear rig; then 'arm' and 'enable'"
-    : "TARE FAILED: motors disarmed; run 'tare' to retry");
+  if (stateLatched) { Serial.print("Reset FAILED : Latched. Something is wrong with the code."); return; }
+
+  log_i("AUTO-TARE: fixed bench neutral, %s, motors OFF",
+    USE_FORCE_SENSORS ? "both sensors unloaded/stationary" : "force sensors disabled (home only)");
+  caliAndSyncHome();
+
+  if (!stateCalibrated) { Serial.print("Reset FAILED : calibration unsuccessful. Something is wrong with the code."); return; }
+  
+  // Serial.println(stateZeroed && !stateLatched
+  //   ? "READY DISARMED: choose 'speed', confirm cutoff/hard stops/clear rig; then 'arm' and 'enable'"
+  //   : "TARE FAILED: motors disarmed; run 'tare' to retry");
+
+  Serial.println("Reset DONE.");
+
+  
 }
 
 static bool parseLong(const char* text, long& out, long minValue, long maxValue) {
@@ -144,12 +151,12 @@ static void cmdHelp(const CommandArgs&) {
 
 static void cmdStatus(const CommandArgs&) {
   Serial.printf("STATUS armed=%d enabled=%d latched=%d tared=%d forceSensors=%s speed=level %u (%.1f deg/s) L=%s R=%s\n",
-    stateArmed, stateEnabled, stateLatched, stateZeroed, USE_FORCE_SENSORS ? "on" : "off",
+    stateArmed, stateEnabled, stateLatched, stateCalibrated, USE_FORCE_SENSORS ? "on" : "off",
     (unsigned)(testSpeedLevel + 1), selectedJointSpeedDps(),
     axisStateName(leftAxis), axisStateName(rightAxis));
 }
 
-static void cmdSpeed(const CommandArgs& args) {
+static void cmdSetSpeed(const CommandArgs& args) {
   if (args.count == 0) { // "speed" alone shows the current level
     Serial.printf("speed: level %u = %.1f joint-deg/s (%.1f RPM); levels 1..%u\n",
       (unsigned)(testSpeedLevel + 1), selectedJointSpeedDps(), selectedJointSpeedDps() / 6.0,
@@ -176,17 +183,15 @@ static void cmdTare(const CommandArgs&) {
     Serial.println("ERR tare: denied while armed or moving");
     return;
   }
-  tare();
-  if (stateZeroed)
-    syncHomes();
+  caliAndSyncHome();
 }
 
 static void cmdArm(const CommandArgs&) {
   if (stateLatched) {
-    Serial.println("ERR arm: latched; reset the board");
+    Serial.println("ERR arm: latched; run reset");
     return;
   }
-  if (!stateZeroed) {
+  if (!stateCalibrated) {
     Serial.println("ERR arm: not tared; run 'tare' first");
     return;
   }
@@ -199,7 +204,6 @@ static void cmdArm(const CommandArgs&) {
     return;
   }
   stateArmed = true;
-  stateConfirmed = true;
   stateEnabled = false;
   leftAxis.released = rightAxis.released = false;
   intentSinceL = intentSinceR = 0;
@@ -293,7 +297,7 @@ static const CommandSpec COMMAND_TABLE[] = {
   // name        usage                      help                                              min max handler
   { "help", "", "list commands", 0, 0, cmdHelp },
   { "status", "", "show arm/enable/latch state and axis states", 0, 0, cmdStatus },
-  { "speed", "[level]", "show or set speed level (disarmed only)", 0, 1, cmdSpeed },
+  { "speed", "[level]", "show or set speed level (disarmed only)", 0, 1, cmdSetSpeed },
   { "tare", "", "zero force sensors and capture home (disarmed)", 0, 0, cmdTare },
   { "arm", "", "arm (sends STOP/OFF first)", 0, 0, cmdArm },
   { "enable", "", "let force start jogs (after arm)", 0, 0, cmdEnable },

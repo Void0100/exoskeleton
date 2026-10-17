@@ -27,4 +27,5 @@ struct CommandSpec {
 /** Read Serial and run complete lines. Call once per loop(); never blocks. */
 void commandsPoll();
 
+/**  */
 void reset();

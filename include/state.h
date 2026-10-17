@@ -4,7 +4,7 @@
 #include "types.h"
 
 // Safety state machine flags. latched is permanent until reset.
-extern bool stateArmed, stateConfirmed, stateLatched, stateZeroed, stateEnabled;
+extern bool stateArmed, stateLatched, stateCalibrated, stateEnabled;
 // Captured by tare(): encoder home (raw deg) and HX baseline (counts).
 extern double baseAngRawL, baseAngRawR, baseForceRawL, baseForceRawR;
 // Selected index into TEST_SPEED_LEVEL_DPS (change only while disarmed).
