@@ -28,7 +28,7 @@ bool caliAndSyncHome() {
       }
     }
 
-    int32_t l = 0, r = 0;
+    double l = 0, r = 0;
     double al = 0, ar = 0;
     MotorStatus ml{}, mr{};
     if (USE_FORCE_SENSORS && !readForceBoth(l, r)) {

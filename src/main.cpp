@@ -74,46 +74,6 @@ static void serviceAxisStateTelemetry() {
     rAngle ? rightMotorAngle : NAN, rAngle ? outputDeg(rightAxis, rightMotorAngle) : NAN);
 }
 
-// Real sensors. Returns true if at least one fresh sample was handled this pass.
-static bool serviceForceSensors() {
-  hxPhase = axesBusy() ? "AXIS_RUN" : "AXIS_IDLE";
-  serviceIndependentHX(); // independent DATA-READY service, no forced L/R pair
-
-  uint32_t now = millis();
-  if (leftForceLatestMs && now - leftForceLatestMs > HX_MAX_STALE_MS) {
-    Serial.printf("HX_STALE side=LEFT ageMs=%lu\n", (unsigned long)(now - leftForceLatestMs));
-    latch("left force sensor timeout");
-    return false;
-  }
-  if (rightForceLatestMs && now - rightForceLatestMs > HX_MAX_STALE_MS) {
-    Serial.printf("HX_STALE side=RIGHT ageMs=%lu\n", (unsigned long)(now - rightForceLatestMs));
-    latch("right force sensor timeout");
-    return false;
-  }
-  if (!leftFresh && !rightFresh)
-    return false;
-
-  forceLeft = leftForceLatestMs ? -(leftLatestForceRaw - baseForceRawL) : 0.0; // left HX forward is negative
-  forceRight = rightForceLatestMs ? (rightLatestForceRaw - baseForceRawR) : 0.0;
-
-  if (controlActive()) {
-    if (leftFresh) {
-      leftFresh = false;
-      updateAxis(leftAxis, forceLeft);
-    }
-    if (stateLatched)
-      return true;
-    if (rightFresh) {
-      rightFresh = false;
-      updateAxis(rightAxis, forceRight);
-    }
-  } else {
-    leftFresh = false;
-    rightFresh = false;
-  }
-  return true;
-}
-
 static void serviceIdleDiagnostics() {
   if (axesBusy() || (uint32_t)(millis() - lastIdleDiagMs) < IDLE_DIAG_MS)
     return;
@@ -168,15 +128,8 @@ void loop() {
   if (stateLatched)
     return;
 
-  if (USE_FORCE_SENSORS) {
-    bool gotSample = serviceForceSensors();
-    if (stateLatched)
-      return;
-    if (!gotSample) {
-      delayMicroseconds(100);
-      return;
-    }
-  }
+  serviceUpdateForces();
+
   // With sensors off nothing can start a jog; only the time-gated diagnostics run.
   serviceIdleDiagnostics();
 }

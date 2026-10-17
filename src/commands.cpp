@@ -49,7 +49,6 @@ void reset() {
   //   : "TARE FAILED: motors disarmed; run 'tare' to retry");
 
   Serial.println("Reset DONE.");
-
   
 }
 
@@ -231,7 +230,7 @@ static void cmdRead(const CommandArgs&) {
     Serial.println("ERR read: denied while moving; use 'stop'");
     return;
   }
-  int32_t l = 0, r = 0;
+  double l = 0, r = 0;
   double al = 0, ar = 0;
   if (USE_FORCE_SENSORS) {
     hxPhase = "MANUAL_PEEK";
