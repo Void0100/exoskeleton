@@ -6,9 +6,9 @@
 
 void tare() {
   hxPhase = "TARE";
-  if (latched || armed) { Serial.println("TARE DENIED: disarm and reset if latched"); return; }
-  zeroed = false;
-  confirmed = false;
+  if (stateLatched || stateArmed) { Serial.println("TARE DENIED: disarm and reset if latched"); return; }
+  stateZeroed = false;
+  stateConfirmed = false;
   double sl = 0, sr = 0;
   int32_t loL = INT32_MAX, hiL = INT32_MIN, loR = INT32_MAX, hiR = INT32_MIN;
   double minA[2] = {1e99, 1e99}, maxA[2] = {-1e99, -1e99};
@@ -50,18 +50,18 @@ void tare() {
     Serial.println("TARE FAIL: insufficient samples or encoder drift");
     return;
   }
-  baseL = sl / n;
-  baseR = sr / n;
-  homeL = (minA[0] + maxA[0]) * 0.5;
-  homeR = (minA[1] + maxA[1]) * 0.5;
-  zeroed = true;
+  baseForceRawL = sl / n;
+  baseForceRawR = sr / n;
+  baseAngRawL = (minA[0] + maxA[0]) * 0.5;
+  baseAngRawR = (minA[1] + maxA[1]) * 0.5;
+  stateZeroed = true;
   Serial.printf("TARE/HOME OK n=%u baseline L=%.0f R=%.0f noise spread L=%ld R=%ld counts; NOT calibrated N/kg\n",
-                n, baseL, baseR, (long)(hiL - loL), (long)(hiR - loR));
+                n, baseForceRawL, baseForceRawR, (long)(hiL - loL), (long)(hiR - loR));
 }
 
 void syncHomes() {
-  leftAxis.home = homeL;
-  rightAxis.home = homeR;
-  leftAxis.base = baseL;
-  rightAxis.base = baseR;
+  leftAxis.home = baseAngRawL;
+  rightAxis.home = baseAngRawR;
+  leftAxis.base = baseForceRawL;
+  rightAxis.base = baseForceRawR;
 }

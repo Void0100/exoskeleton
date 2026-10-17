@@ -129,6 +129,8 @@ void runAxis(Axis& a, double force);
  */
 void updateAxis(Axis& a, double force);
 
+bool axesBusy();
+
 /**
  * Current state as text for logs.
  * @return "RUN", "STOP_MEASURE", "READY" or "WAIT_RELEASE" (checked in that priority order)

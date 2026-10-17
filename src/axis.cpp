@@ -54,7 +54,7 @@ bool stopAxis(Axis &a, const char *reason) {
 }
 
 void startAxis(Axis &a, int intent, double force) {
-  if (a.moving || stopCharFor(a.id).active || !a.released || !armed || latched || !enabled || intent == 0) return;
+  if (a.moving || stopCharFor(a.id).active || !a.released || !stateArmed || stateLatched || !stateEnabled || intent == 0) return;
   MotorStatus st{};
   double pos = 0;
   if (!rsReadMotorStatus(a.id, st) || !rsReadAngle(a.id, pos)) { latch("axis preflight telemetry failure"); return; }
@@ -125,6 +125,8 @@ void updateAxis(Axis &a, double force) {
     since = 0;
   }
 }
+
+bool axesBusy() { return leftAxis.moving || rightAxis.moving; }
 
 const char *axisStateName(const Axis &a) {
   if (a.moving) return "RUN";

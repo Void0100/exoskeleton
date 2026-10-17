@@ -13,8 +13,7 @@ static uint8_t checksum(const uint8_t *p, size_t ed) {
   return s;
 }
 
-const char *commandName(Command cmd)
-{
+const char *commandName(Command cmd) {
   switch (cmd)
   {
   case Command::MotorOff:

@@ -24,21 +24,7 @@ struct CommandSpec {
 };
 
 // ---- API ----------------------------------------------------------------
-/** Register the command table (must outlive the program: use a static array). */
-void commandsInit(const CommandSpec *table, size_t count, void (*emergencyStop)());
-
 /** Read Serial and run complete lines. Call once per loop(); never blocks. */
 void commandsPoll();
 
-/** Print the command list built from the table. */
-void commandsPrintHelp();
-
-/**
- * Parse a whole-string base-10 integer within [minValue, maxValue].
- * @return false if the text is empty, has trailing characters, or is out of range
- *         (out is left unchanged).
- */
-bool parseLong(const char *text, long &out, long minValue, long maxValue);
-
-/** Same for a finite floating-point number. */
-bool parseDouble(const char *text, double &out, double minValue, double maxValue);
+void reset();

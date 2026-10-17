@@ -16,8 +16,17 @@ static constexpr int RIGHT_FORCE_CLOCK_PIN = 3;  // Right HX711 clock
 static constexpr uint8_t LEFT_BUS_ID = 1;  // Left motor bus address
 static constexpr uint8_t RIGHT_BUS_ID = 2;  // Right motor bus address
 
+// ---- Logging settings ----
+static bool DO_PRINT_TELEMETRY = true;
+static bool DO_IDLE_DIAG = true;
+
+static constexpr uint32_t TELEMETRY_INTERVAL_MS = 5000;
+static constexpr uint32_t IDLE_DIAG_INTERVAL_MS = 5000;
+
+
+
 // ---- Module activation ----
-static constexpr bool USE_FORCE_SENSORS = false;
+static constexpr bool USE_FORCE_SENSORS = true;
 
 // ---- Timing and timeouts ----
 static constexpr uint32_t RS_TIMEOUT_US = 20000; // Max time (us) to receive one RS-485 reply frame
