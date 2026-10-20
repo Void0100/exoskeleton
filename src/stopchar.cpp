@@ -5,7 +5,7 @@
 
 StopChar stopL, stopR;
 
-StopChar &stopCharFor(uint8_t id) { return id == LEFT_BUS_ID ? stopL : stopR; }
+StopChar &stopCharFor(int id) { return id == LEFT_BUS_ID ? stopL : stopR; }
 
 void beginStopChar(const Axis &a, double posBefore, int16_t speedBefore) {
   StopChar &q = stopCharFor(a.id);

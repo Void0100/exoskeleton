@@ -5,12 +5,31 @@
 // Phase label printed in HX_TIMEOUT diagnostics (set by callers).
 extern const char *hxPhase;
 
-void serviceUpdateForces();                 // non-blocking, each side on its own DOUT-ready
-bool serviceReadForceLeft(double& output);
-bool serviceReadForceRight(double& output);
-bool serviceReadForceBoth(double& l, double& r);
+class ForceSensor {
+    private:
+        int dataPin, clockPin;
+        int prevForceRaw;
+        uint32_t prevForceRawMs;
+        bool hasFirstSample;
+        bool isReversed;
 
-bool readForceLeft(double& output);
-bool readForceRight(double& output);
-bool readForceBoth(double &l, double &r);         // blocking paired read (tare and P only)
+        // TODO : interval stats
 
+    public:
+        ForceSensor(int dataPin, int clockPin);
+
+        // statics
+        static double rawToNewton(int32_t raw);
+
+        // helpers
+        bool isFresh();
+
+        // blocking function
+        bool readForceRaw(int32_t& output);
+        bool readForce(double& output);
+
+        // non-blocking function
+        void serviceUpdateForce();
+        bool getPrevForceRaw(int32_t& output);
+        bool getPrevForce(double& output);
+};

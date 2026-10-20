@@ -9,19 +9,6 @@ struct MotorStatus {
   uint16_t encoder;
 };
 
-// All per-motor runtime state. Independent axes: no opposing-intent gate.
-struct Axis {
-  uint8_t id;
-  int anatomicalToRaw;      // +1 left, -1 right
-  double home, base;        // encoder home (raw deg), HX baseline (counts)
-  bool moving, released;
-  int intent;               // -1, 0, +1
-  uint8_t candidateCount;
-  double target, start, lastAngle;
-  uint32_t speed, began, updated;
-  uint8_t overIq;
-};
-
 // One non-worn bench STOP characterization record (+50/+100/+200/+500 ms).
 struct StopChar {
   bool active = false;

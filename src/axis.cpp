@@ -134,3 +134,22 @@ const char *axisStateName(const Axis &a) {
   if (a.released) return "READY";
   return "WAIT_RELEASE";
 }
+
+
+class Axis {
+  private:
+    int _motorId, _motorDataPin, _motorClockPin, _forceSensorPin;
+    bool _isForceReversed;
+    bool 
+
+  public:
+    Axis(int motorId, int motorDataPin, int motorClockPin, int forceSensorPin, bool isForceReversed) {
+      _motorId = motorId;
+      _motorDataPin = motorDataPin;
+      _motorClockPin = motorClockPin;
+      _forceSensorPin = forceSensorPin;
+      _isForceReversed = isForceReversed;
+    }
+
+    bool 
+}

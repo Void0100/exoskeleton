@@ -1,20 +1,3 @@
-// #pragma once
-// #include <Arduino.h>
-// #include "config.h"
-// #include "types.h"
-
-// double outputDeg(const Axis &a, double raw);             // joint angle relative to home
-// bool inside(const Axis &a, double raw);                  // within software travel limits
-// int classify(double forwardCounts);                      // +1 / -1 / 0 using ENTER_COUNTS
-// uint32_t selectedMotorSpeed01();                         // A4 speed units (0.01 motor-deg/s)
-// double selectedJointSpeedDps();
-// double targetLeadRawDeg();
-// double targetFor(const Axis &a, int intent, double current);
-// bool stopAxis(Axis &a, const char *reason);
-// void startAxis(Axis &a, int intent, double force);
-// void runAxis(Axis &a, double force);
-// void updateAxis(Axis &a, double force);                  // per-axis state machine
-// const char *axisStateName(const Axis &a);
 #pragma once
 #include <Arduino.h>
 
@@ -136,3 +119,23 @@ bool axesBusy();
  * @return "RUN", "STOP_MEASURE", "READY" or "WAIT_RELEASE" (checked in that priority order)
  */
 const char* axisStateName(const Axis& a);
+
+struct Axis {
+  uint8_t id;
+  int anatomicalToRaw;      // +1 left, -1 right
+  double home, base;        // encoder home (raw deg), HX baseline (counts)
+  bool moving, released;
+  int intent;               // -1, 0, +1
+  uint8_t candidateCount;
+  double target, start, lastAngle;
+  uint32_t speed, began, updated;
+  uint8_t overIq;
+};
+
+class Axis {
+    private:
+        bool latched, calibrated, armed, enabled;
+        // Motor motor;
+        int motorId, 
+
+}
