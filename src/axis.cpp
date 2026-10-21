@@ -2,6 +2,7 @@
 #include "state.h"
 #include "rs485.h"
 #include "stopchar.h"
+#include "hx711.h"
 
 double outputDeg(const Axis &a, double raw) { return a.anatomicalToRaw * (raw - a.home) / GEAR; }
 
@@ -138,18 +139,17 @@ const char *axisStateName(const Axis &a) {
 
 class Axis {
   private:
-    int _motorId, _motorDataPin, _motorClockPin, _forceSensorPin;
-    bool _isForceReversed;
-    bool 
+    Motor motor;
+    ForceSensor forceSensor;
 
   public:
-    Axis(int motorId, int motorDataPin, int motorClockPin, int forceSensorPin, bool isForceReversed) {
-      _motorId = motorId;
-      _motorDataPin = motorDataPin;
-      _motorClockPin = motorClockPin;
-      _forceSensorPin = forceSensorPin;
-      _isForceReversed = isForceReversed;
+    Axis(Motor motor, ForceSensor forseSensor) {
+      motor = motor;
+      forseSensor = forceSensor;
     }
+
+    // constraints, cant move over bound and stuff, not sure how to do that yet
+    
 
     bool 
 }

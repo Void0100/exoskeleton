@@ -36,23 +36,30 @@ struct MotorCommand {
 void activateRxMode();  // bus receive mode
 void activateTxMode();  // bus send mode
 
-// bool rsSendCommand(uint8_t id, Command cmd, uint8_t* b, size_t& n);
-// bool rsReadMotorStatus(uint8_t id, MotorStatus &s);        
-// bool rsReadAngle(uint8_t id, double &deg);              
-// bool rsSetTorqueZero(uint8_t id);                          
-// bool a4(uint8_t id, int64_t target01, uint32_t speed01); // absolute position + speed limit
+bool rsSendCommand(uint8_t id, MotorCommand cmd, uint8_t* b, size_t& n);
+bool rsReadMotorStatus(uint8_t id, MotorStatus &s);        
+bool rsReadAngle(uint8_t id, double &deg);              
+bool rsSetTorqueZero(uint8_t id);                          
+bool rsMoveToPos(uint8_t id, int64_t target01, uint32_t speed01); // absolute position + speed limit
 // bool rsStopBothMotors();                                  // STOP(0x81)+OFF(0x80) both; ACK is NOT isolation
 // void sendPacket(const uint8_t *packet, size_t size);
+bool rsOff(uint8_t motorId);
+bool rsStop(uint8_t motorId);
 
 class Motor {
   private:
     uint8_t motorId;
+    bool stateArmed = false, stateLatched = false, stateCalibrated = false, stateEnabled = false;
+    double baseAngle = 0.;
     
   public:
+    Motor(uint8_t motorId);
+
     uint8_t getMotorId();
+    bool calibrate();
     bool getMotorStatus(MotorStatus &stat);
     bool getMotorAngle(double &deg);
     bool setTorqueZero();
     bool moveToPos(int64_t targetPos, uint32_t speedLimit);
-
+    bool latch();
 };

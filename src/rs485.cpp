@@ -6,6 +6,9 @@ HardwareSerial motorBus(1);
 static constexpr uint8_t FRAME_START = 0x3E;  // ASCII '>'
 static constexpr size_t HEADER_SIZE = 5;
 
+// ---- Motor calibration constants ----
+static constexpr double MAX_CALI_DEG_DIFF = 20;
+
 
 static uint8_t sumUntil(const uint8_t *arr, size_t end) {
   uint8_t s = 0;
@@ -91,11 +94,11 @@ static bool readReply(MotorCommand cmd, uint8_t id, uint8_t *b, size_t &sizeCnt)
   return sizeCnt == total && (len == 0 || sumUntil(b + 5, len) == b[5 + len]);
 }
 
-bool rsSendCommand(uint8_t motorId, MotorCommand cmd, uint8_t *b, size_t &size, uint8_t payloadLen=0, size_t packetLen=5) {
-  uint8_t p[packetLen] = {0};
-  p[0] = FRAME_START; p[1] = cmd.toByte(); p[2] = motorId; p[3] = payloadLen;
+bool rsSendCommand(uint8_t motorId, MotorCommand cmd, uint8_t *b, size_t &size) {
+  uint8_t p[5] = {0};
+  p[0] = FRAME_START; p[1] = cmd.toByte(); p[2] = motorId; p[3] = 0;
   p[4] = sumUntil(p, 4);
-  rsSendPacket(p, packetLen);
+  rsSendPacket(p, 5);
   
   bool success = readReply(cmd, motorId, b, size);
   delayMicroseconds(GAP_US);
@@ -153,6 +156,26 @@ bool rsMoveToPos(uint8_t id, int64_t targetPos, uint32_t speedLimit) {
   return ok && n == 13 && b[3] == 7;
 }
 
+bool rsStop(uint8_t motorId) {
+  uint8_t b[RS485_MAX_FRAME_SIZE];
+  size_t sizeCnt = 0;
+  bool succ = rsSendCommand(motorId, MotorCommand::Code::MotorStop, b, sizeCnt);
+  if (!succ) {
+    Serial.printf("Motor stop failed, motorId=%u \n", motorId);
+  }
+  return true;
+}
+
+bool rsOff(uint8_t motorId) {
+  uint8_t b[RS485_MAX_FRAME_SIZE];
+  size_t sizeCnt = 0;
+  bool succ = rsSendCommand(motorId, MotorCommand::Code::MotorOff, b, sizeCnt);
+  if (!succ) {
+    Serial.printf("Motor stop failed, motorId=%u \n", motorId);
+  }
+  return true;
+}
+
 // bool rsStopBothMotors() {
 //   uint8_t b[RS485_MAX_FRAME_SIZE];
 //   size_t n = 0;
@@ -168,6 +191,10 @@ bool rsMoveToPos(uint8_t id, int64_t targetPos, uint32_t speedLimit) {
 //   return leftMotorStop && leftMotoroff && rightMotorStop && rightMotoroff;
 // }
 
+Motor::Motor(uint8_t motorId) {
+  motorId = motorId;
+}
+
 uint8_t Motor::getMotorId() {
   return motorId;
 }
@@ -182,4 +209,60 @@ bool Motor::setTorqueZero() {
 }
 bool Motor::moveToPos(int64_t targetPos, uint32_t speedLimit) {
   return rsMoveToPos(motorId, targetPos, speedLimit);
+}
+bool Motor::latch() {
+  if (stateLatched) { Serial.println("Already latched"); return true; }
+  bool stopped = rsStop(motorId);
+  bool isOff = rsOff(motorId);
+  if (!(stopped && isOff)) {
+    Serial.printf("Motor latch failed, motorId=%u \n", motorId);
+  }
+  stateLatched = true;
+  return true;
+}
+
+bool Motor::calibrate() {
+  if (stateLatched) { log_e("calibrate while latched, motorId=%u", motorId); return false; }
+  if (stateArmed) { log_e("calibrate while armed, motorId=%u", motorId); return false; }
+  stateCalibrated = false;
+  uint32_t t = millis();
+  Serial.println("TARE/HOME: set both joints to FIXED BENCH NEUTRAL and keep sensors stationary for 3 seconds; motors OFF");
+
+  int cnt = 0;
+  double totAngle = 0;
+  double minA = 1e99; double maxA = -1e99;
+  while ((uint32_t)(millis() - t) < ZERO_MS) {
+    while (Serial.available()) {
+      char c = (char)Serial.read();
+      if (c == EMERGENCY_STOP_CHAR) {
+        latch();
+        return false;
+      }
+    }
+
+    double angle = 0;
+    if (!rsReadAngle(motorId, angle)) {
+      Serial.println("MOTOR CALIBRATION FAIL: read angle failure");
+      return false;
+    }
+    if (angle < minA) { minA = angle; }
+    if (angle > maxA) { maxA = angle; }
+
+    if (maxA - minA > MAX_CALI_DEG_DIFF) { Serial.println("MOTOR CALIBRATE FAIL: moving or encoder drift"); return false; }
+    cnt++;
+    totAngle += angle;
+    delay(12);
+  }
+
+  if (cnt < 15) {
+    Serial.println("TARE FAIL: insufficient samples");
+    return false;
+  }
+
+  baseAngle = totAngle / cnt;
+  stateCalibrated = true;
+
+  Serial.printf("MOTOR CALIBRATION SUCESSFUL, motorId=%u, \nno. of sample=%u baseAngle=%.0f spread R=%.0f.",
+    motorId, cnt, baseAngle, maxA-minA);
+  return true;
 }
