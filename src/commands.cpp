@@ -239,7 +239,7 @@ static void cmdRead(const CommandArgs&) {
       return;
     }
   }
-  if (!rsReadAngle(LEFT_BUS_ID, al) || !rsReadAngle(RIGHT_BUS_ID, ar)) {
+  if (!rsReadAngleDeg(LEFT_BUS_ID, al) || !rsReadAngleDeg(RIGHT_BUS_ID, ar)) {
     Serial.println("ERR read: motor angle read failed");
     return;
   }

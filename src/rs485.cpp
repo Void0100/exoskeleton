@@ -120,14 +120,14 @@ bool rsReadMotorStatus(uint8_t motorId, MotorStatus &stat) {
   return true;
 }
 
-bool rsReadAngle(uint8_t id, double &deg) {
+bool rsReadAngleDeg(uint8_t id, double &deg) {
   uint8_t b[RS485_MAX_FRAME_SIZE];
   size_t n = 0;
   if (!rsSendCommand(id, MotorCommand::Code::ReadAngle, b, n) || n != 14 || b[3] != 8)
     return false;
   uint64_t raw = 0;
   for (int i = 0; i < 8; i++) raw |= (uint64_t)b[5 + i] << (8 * i);
-  deg = (double)(int64_t)raw * 0.01;
+  deg = Motor::rawAngleToDeg(raw);
   return true;
 }
 
@@ -154,6 +154,14 @@ bool rsMoveToPos(uint8_t id, int64_t targetPos, uint32_t speedLimit) {
   bool ok = readReply(cmd, id, b, n);
   delayMicroseconds(GAP_US);
   return ok && n == 13 && b[3] == 7;
+}
+
+bool rsEnable(uint8_t motorId) {
+  uint8_t b[RS485_MAX_FRAME_SIZE];
+  size_t n = 0;
+  if (!rsSendCommand(motorId, MotorCommand::Code::MotorRun, b, n))
+    return false;
+  return true;
 }
 
 bool rsStop(uint8_t motorId) {
@@ -195,14 +203,26 @@ Motor::Motor(uint8_t motorId) {
   motorId = motorId;
 }
 
+double Motor::rawAngleToDeg(uint64_t rawA) {
+  return (double) rawA * ANGLE_RAW_TO_DEG * GEAR_RATIO;
+}
+
+
+// get states
+bool Motor::isArmed() { return stateArmed; }
+bool Motor::isLatched() { return stateLatched; }
+bool Motor::isCalibrated() { return stateCalibrated; }
+bool Motor::isEnabled() { return stateEnabled; }
+
+
 uint8_t Motor::getMotorId() {
   return motorId;
 }
 bool Motor::getMotorStatus(MotorStatus &stat) {
   return rsReadMotorStatus(motorId, stat);
 }
-bool Motor::getMotorAngle(double &deg) {
-  return rsReadAngle(motorId, deg);
+bool Motor::getMotorAngleDeg(double &deg) {
+  return rsReadAngleDeg(motorId, deg);
 }
 bool Motor::setTorqueZero() {
   return rsSetTorqueZero(motorId);
@@ -210,7 +230,10 @@ bool Motor::setTorqueZero() {
 bool Motor::moveToPos(int64_t targetPos, uint32_t speedLimit) {
   return rsMoveToPos(motorId, targetPos, speedLimit);
 }
-bool Motor::latch() {
+
+
+// state actions
+bool Motor::doLatch() {
   if (stateLatched) { Serial.println("Already latched"); return true; }
   bool stopped = rsStop(motorId);
   bool isOff = rsOff(motorId);
@@ -221,7 +244,19 @@ bool Motor::latch() {
   return true;
 }
 
-bool Motor::calibrate() {
+bool Motor::doArm() {
+  if (stateLatched) { Serial.println("ERR arm: latched; run reset"); return false; }
+  if (!stateCalibrated) { Serial.println("ERR arm: not tared; run 'tare' first"); return false; }
+  if (stateArmed) { Serial.println("ERR arm: already armed"); return true; }
+
+  stateArmed = true;
+  stateEnabled = false;
+  Serial.printf("ARMED SUCCESS; motorId=%u \n", motorId);
+  return true;
+}
+
+bool Motor::doCalibrate() {
+  // TODO : check angle starting line, ie where does 0deg point at
   if (stateLatched) { log_e("calibrate while latched, motorId=%u", motorId); return false; }
   if (stateArmed) { log_e("calibrate while armed, motorId=%u", motorId); return false; }
   stateCalibrated = false;
@@ -235,13 +270,13 @@ bool Motor::calibrate() {
     while (Serial.available()) {
       char c = (char)Serial.read();
       if (c == EMERGENCY_STOP_CHAR) {
-        latch();
+        doLatch();
         return false;
       }
     }
 
     double angle = 0;
-    if (!rsReadAngle(motorId, angle)) {
+    if (!rsReadAngleDeg(motorId, angle)) {
       Serial.println("MOTOR CALIBRATION FAIL: read angle failure");
       return false;
     }
@@ -259,10 +294,24 @@ bool Motor::calibrate() {
     return false;
   }
 
-  baseAngle = totAngle / cnt;
+  baseAngleDeg = totAngle / cnt;
   stateCalibrated = true;
 
-  Serial.printf("MOTOR CALIBRATION SUCESSFUL, motorId=%u, \nno. of sample=%u baseAngle=%.0f spread R=%.0f.",
-    motorId, cnt, baseAngle, maxA-minA);
+  Serial.printf("MOTOR CALIBRATION SUCESSFUL, motorId=%u, \nno. of sample=%u baseAngle=%.0f spread R=%.0f (deg).",
+    motorId, cnt, baseAngleDeg, maxA-minA);
+  return true;
+}
+
+bool Motor::doEnable() {
+  if (stateLatched) { Serial.println("ERR enable: latched; reset the motor"); return false; }
+  if (!stateArmed) { Serial.println("ERR enable: not armed; run 'arm' first"); return false; }
+  if (!rsEnable(motorId)) { Serial.println("ERR enable: not armed; command failed to run"); }
+  stateEnabled = true;
+  return true;
+}
+
+bool Motor::doReset() {
+  // TODO : fail guard constraints
+  stateArmed = false, stateLatched = false, stateCalibrated = false, stateEnabled = false;
   return true;
 }

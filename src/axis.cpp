@@ -42,7 +42,7 @@ double targetFor(const Axis &a, int intent, double current) {
 bool stopAxis(Axis &a, const char *reason) {
   MotorStatus pre{};
   double posBefore = NAN;
-  bool havePre = rsReadMotorStatus(a.id, pre) && rsReadAngle(a.id, posBefore);
+  bool havePre = rsReadMotorStatus(a.id, pre) && rsReadAngleDeg(a.id, posBefore);
   uint8_t b[32];
   size_t n = 0;
   bool st = rsSendCommand(a.id, Command::MotorStop, b, n), off = rsSendCommand(a.id, Command::MotorOff, b, n);
@@ -58,7 +58,7 @@ void startAxis(Axis &a, int intent, double force) {
   if (a.moving || stopCharFor(a.id).active || !a.released || !stateArmed || stateLatched || !stateEnabled || intent == 0) return;
   MotorStatus st{};
   double pos = 0;
-  if (!rsReadMotorStatus(a.id, st) || !rsReadAngle(a.id, pos)) { latch("axis preflight telemetry failure"); return; }
+  if (!rsReadMotorStatus(a.id, st) || !rsReadAngleDeg(a.id, pos)) { latch("axis preflight telemetry failure"); return; }
   if (abs((int)st.speed) > 5 || !inside(a, pos)) { latch("axis preflight moving/outside limits"); return; }
   uint8_t b[32];
   size_t n = 0;
@@ -84,7 +84,7 @@ void runAxis(Axis &a, double force) {
   if (intent != a.intent || force * a.intent < EXIT_COUNTS) { stopAxis(a, "released/reversed"); return; }
   MotorStatus st{};
   double pos = 0;
-  if (!rsReadMotorStatus(a.id, st) || !rsReadAngle(a.id, pos)) { latch("axis runtime telemetry failure"); return; }
+  if (!rsReadMotorStatus(a.id, st) || !rsReadAngleDeg(a.id, pos)) { latch("axis runtime telemetry failure"); return; }
   if (st.temperature >= MAX_TEMP || abs((int)st.speed) > MAX_SPEED_FB || !inside(a, pos)) {
     latch("axis temperature/speed/travel fault");
     return;
@@ -137,19 +137,75 @@ const char *axisStateName(const Axis &a) {
 }
 
 
-class Axis {
-  private:
-    Motor motor;
-    ForceSensor forceSensor;
 
-  public:
-    Axis(Motor motor, ForceSensor forseSensor) {
-      motor = motor;
-      forseSensor = forceSensor;
-    }
 
-    // constraints, cant move over bound and stuff, not sure how to do that yet
+
+
+
+
+
+
+
+
+
+
+
+// ---- Axis class functions ----
+// get states
+bool Axis::isArmed() { return motor.isArmed(); }
+bool Axis::isLatched() { return motor.isLatched(); }
+bool Axis::isCalibrated() { return motor.isCalibrated(); }
+bool Axis::isEnabled() { return motor.isEnabled(); }
+
+// sets and gets
+bool Axis::getMotorStatus(MotorStatus &stat) { return motor.getMotorStatus(stat); }
+
+
+
+
+// state actions
+bool Axis::doLatch() { return motor.doLatch(); }
+bool Axis::doArm() { return motor.doArm(); }
+bool Axis::doCalibrate() { return motor.doCalibrate(); }
+bool Axis::doEnable() { return motor.doEnable(); }
+
+// constraints, cant move over bound and stuff, not sure how to do that yet
+/**checks if the motor's angle is within designed movement range */
+// bool isInbound();
+
+
+// modes (pls god pls work fuck)
+bool Axis::stepBoundedSwing(double& speedDeg) {
+  // TODO : fail cases handling
+  if (!_modeBoundedSwingData.started) {
+    _modeBoundedSwingData.started = true;
+    _modeBoundedSwingData.dir = 1;
+    motor.moveToPos(FORWARD_LIMIT_DEG, speedDeg*_modeBoundedSwingData.dir);
+    return true;
+  }
+
+  MotorStatus stat; double angle;
+  motor.getMotorStatus(stat);
+  motor.getMotorAngleDeg(angle);
+
+  if (stat.speed == 0) {
+    _modeBoundedSwingData.dir *= -1;
+    log_d("Axis %s changed direction to %s; Final pos=%f.0 deg",
+          name, (_modeBoundedSwingData.dir==1) ? "forward" : "backward", angle);
     
-
-    bool 
+    double target = (_modeBoundedSwingData.dir == 1) ? FORWARD_LIMIT_DEG : BACKWARD_LIMIT_DEG;
+    motor.moveToPos(target, speedDeg*_modeBoundedSwingData.dir);
+  }
+  return true;
 }
+
+
+
+
+
+// update
+/** update motor and force sensor readings */
+bool update();
+
+// execute next step according to current readings, unsure about this design tho
+bool step();

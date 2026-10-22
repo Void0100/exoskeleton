@@ -35,7 +35,7 @@ bool caliAndSyncHome() {
       Serial.println("TARE FAIL: read force failure");
       return false;
     }
-    if (!rsReadMotorStatus(LEFT_BUS_ID, ml) || !rsReadMotorStatus(RIGHT_BUS_ID, mr) || !rsReadAngle(LEFT_BUS_ID, al) || !rsReadAngle(RIGHT_BUS_ID, ar)) {
+    if (!rsReadMotorStatus(LEFT_BUS_ID, ml) || !rsReadMotorStatus(RIGHT_BUS_ID, mr) || !rsReadAngleDeg(LEFT_BUS_ID, al) || !rsReadAngleDeg(RIGHT_BUS_ID, ar)) {
       Serial.println("TARE FAIL: read angle failure");
       return false;
     }

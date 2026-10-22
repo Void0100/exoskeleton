@@ -59,8 +59,8 @@ static void serviceAxisStateTelemetry() {
   double leftMotorAngle = NAN, rightMotorAngle = NAN;
   bool lStatus = rsReadMotorStatus(LEFT_BUS_ID, leftMotorStatus);
   bool rStatus = rsReadMotorStatus(RIGHT_BUS_ID, rightMotorStatus);
-  bool lAngle = rsReadAngle(LEFT_BUS_ID, leftMotorAngle);
-  bool rAngle = rsReadAngle(RIGHT_BUS_ID, rightMotorAngle);
+  bool lAngle = rsReadAngleDeg(LEFT_BUS_ID, leftMotorAngle);
+  bool rAngle = rsReadAngleDeg(RIGHT_BUS_ID, rightMotorAngle);
 
   Serial.printf(
     "AXIS_STATE "
@@ -82,7 +82,7 @@ static void serviceIdleDiagnostics() {
 
   if (DO_IDLE_DIAG) {
     if (!rsReadMotorStatus(LEFT_BUS_ID, sl) || !rsReadMotorStatus(RIGHT_BUS_ID, sr) ||
-      !rsReadAngle(LEFT_BUS_ID, al) || !rsReadAngle(RIGHT_BUS_ID, ar)) {
+      !rsReadAngleDeg(LEFT_BUS_ID, al) || !rsReadAngleDeg(RIGHT_BUS_ID, ar)) {
       latch("idle telemetry failure");
     } else {
       if (USE_FORCE_SENSORS)
