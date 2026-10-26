@@ -201,6 +201,7 @@ bool rsOff(uint8_t motorId) {
 
 Motor::Motor(uint8_t motorId) {
   motorId = motorId;
+  update();
 }
 
 double Motor::rawAngleToDeg(uint64_t rawA) {
@@ -215,14 +216,29 @@ bool Motor::isCalibrated() { return stateCalibrated; }
 bool Motor::isEnabled() { return stateEnabled; }
 
 
-uint8_t Motor::getMotorId() {
+uint8_t Motor::getId() {
   return motorId;
 }
-bool Motor::getMotorStatus(MotorStatus &stat) {
-  return rsReadMotorStatus(motorId, stat);
+
+bool Motor::getStatus(MotorStatus &stat) {
+  bool suc = rsReadMotorStatus(motorId, stat);
+  if (!suc) { return false; }
+  // update lastmeas
+  lastMeas.stat.temperature = stat.temperature;
+  lastMeas.stat.iq = stat.iq;
+  lastMeas.stat.speed = stat.speed;
+  lastMeas.stat.encoder = stat.encoder;
+  lastMeas.stat.timeStampMs = millis();
+  return true;
 }
-bool Motor::getMotorAngleDeg(double &deg) {
-  return rsReadAngleDeg(motorId, deg);
+
+bool Motor::getAngleDeg(double &deg) {
+  bool suc = rsReadAngleDeg(motorId, deg);
+  if (!suc) { return false; }
+  // update lastmeas
+  lastMeas.deg.val = deg;
+  lastMeas.deg.timeStampMs = millis();
+  return true;
 }
 bool Motor::setTorqueZero() {
   return rsSetTorqueZero(motorId);
@@ -313,5 +329,46 @@ bool Motor::doEnable() {
 bool Motor::doReset() {
   // TODO : fail guard constraints
   stateArmed = false, stateLatched = false, stateCalibrated = false, stateEnabled = false;
+  return true;
+}
+
+
+bool Motor::update() {
+  MotorStatus st {};
+  double deg;
+  if (!getAngleDeg(deg) || !getStatus(st)) return false;
+  return true;
+}
+
+bool Motor::serviceGetStatus(MotorStatus &stat) {
+  uint32_t ageMs = millis() - lastMeas.stat.timeStampMs;
+  if (ageMs > MEASURMENT_FRESH_MS) {
+    log_e("Unable to retrive stat, meas age = %ums > %ums", ageMs, MEASURMENT_FRESH_MS);
+    return false;
+  }
+  stat.temperature = lastMeas.stat.temperature;
+  stat.iq = lastMeas.stat.iq;
+  stat.speed = lastMeas.stat.speed;
+  stat.encoder = lastMeas.stat.encoder;
+  return true;
+}
+
+bool Motor::serviceGetAngDeg(double& deg) {
+  uint32_t ageMs = millis() - lastMeas.stat.timeStampMs;
+  if (ageMs > MEASURMENT_FRESH_MS) {
+    log_e("Unable to retrive ang, meas age = %ums > %ums", ageMs, MEASURMENT_FRESH_MS);
+    return false;
+  }
+  deg = lastMeas.deg.val;
+  return true;
+}
+
+bool Motor::serviceGetSpeed(double &deg) {
+  uint32_t ageMs = millis() - lastMeas.stat.timeStampMs;
+  if (ageMs > MEASURMENT_FRESH_MS) {
+    log_e("Unable to retrive speed, meas age = %ums > %ums", ageMs, MEASURMENT_FRESH_MS);
+    return false;
+  }
+  deg = lastMeas.stat.speed;
   return true;
 }

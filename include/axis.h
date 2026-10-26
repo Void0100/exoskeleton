@@ -138,8 +138,8 @@ enum class AxisMode : uint8_t { Idle, BoundedSwing, AmpSpeed };
 
 class Axis {
 private:
-    const Motor &motor;
-    const ForceSensor &forceSensor;
+    Motor &motor;
+    ForceSensor &forceSensor;
     const char* name;
 
     /** is the current motor angle within bounded movement range */
@@ -168,13 +168,15 @@ private:
     // mode ampSpeed: should move motor at speed faster than user speed
     struct AmpSpeedData {
         double ampRatio; // > 1
+        double speedLimDeg;
+        double currMotorSpeed;
     };
-    AmpSpeedData _ampSpeedData;
-    bool initAmpSpeed(double ampRatio);
+    AmpSpeedData _ampSpeedDt;
+    bool initAmpSpeed(double ampRatio, double speedLimDeg);
     bool stepAmpSpeed();
 
 public:
-    Axis(const char* axisName, const Motor &motor, const ForceSensor &forceSensor) :
+    Axis(const char* axisName, Motor &motor, ForceSensor &forceSensor) :
         name(axisName),
         motor(motor),
         forceSensor(forceSensor) {}

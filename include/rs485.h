@@ -12,6 +12,9 @@ static constexpr size_t RS485_MAX_FRAME_SIZE = 32;
 static constexpr double ANGLE_RAW_TO_DEG = 0.01;
 static constexpr double GEAR_RATIO = 36;
 
+// motor fresh time limit ms
+static constexpr uint32_t MEASURMENT_FRESH_MS = 200;
+
 // Motor commands (the byte after the 0x3E start marker).
 struct MotorCommand {
   enum class Code : uint8_t {
@@ -55,6 +58,34 @@ class Motor {
     uint8_t motorId;
     bool stateArmed = false, stateLatched = false, stateCalibrated = false, stateEnabled = false;
     double baseAngleDeg = 0.;
+
+    struct LastMeas {
+      struct Deg {
+        uint32_t timeStampMs;
+        double val;
+      };
+      Deg deg;
+      struct Stat {
+        uint32_t timeStampMs;
+        int8_t temperature;
+        int16_t iq, speed;
+        uint16_t encoder;
+      };
+      Stat stat;
+    };
+    LastMeas lastMeas{};
+
+    // motor actions that require command sending and blocks motorbus. The docs below may not match what the function does, need testing TODO
+    /** return MotorStatus {
+     * int8_t temperature : in celcius
+     * int16_t iq : torque, in current A
+     * int16_t speed : in deg/s, as in the real axis version, including consideration of the gear ratio
+     * uint16_t encoder : not sure what this is, TODO : check
+     * }
+     */
+    bool getStatus(MotorStatus &stat);
+    /** return motor current position(deg), also should match real life/axis like above */
+    bool getAngleDeg(double &deg);
     
   public:
     Motor(uint8_t motorId);
@@ -67,19 +98,12 @@ class Motor {
     bool isCalibrated();
     bool isEnabled();
 
-    uint8_t getMotorId();
+    uint8_t getId();
 
-    // motor actions that require command sending and blocks motorbus. The docs below may not match what the function does, need testing TODO
-    /** return MotorStatus {
-     * int8_t temperature : in celcius
-     * int16_t iq : torque, in current A
-     * int16_t speed : in deg/s, as in the real axis version, including consideration of the gear ratio
-     * uint16_t encoder : not sure what this is, TODO : check
-     * }
-     */
-    bool getMotorStatus(MotorStatus &stat);
-    /** return motor current position(deg), also should match real life/axis like above */
-    bool getMotorAngleDeg(double &deg);
+    bool serviceGetStatus(MotorStatus &stat);
+    bool serviceGetAngDeg(double& deg);
+    bool serviceGetSpeed(double& deg);
+
     /** ok this is just same as motorOff, change this to setTorque and accept torque TODO */
     bool setTorqueZero();
     /** move to position(deg) at speedLimit(deg/s), also should match real life */
@@ -90,4 +114,6 @@ class Motor {
     bool doCalibrate();
     bool doEnable();
     bool doReset();
+
+    bool update();
 };

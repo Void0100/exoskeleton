@@ -22,17 +22,25 @@
 #include "stopchar.h"
 #include "commands.h"
 
+static Motor leftLegMotor(LEFT_BUS_ID);
+static ForceSensor leftLegFS(LEFT_FORCE_DATA_PIN, LEFT_FORCE_CLOCK_PIN);
+static Axis leftLeg("LEFT_LEG", leftLegMotor, leftLegFS);
+
+static Motor rightLegMotor(RIGHT_BUS_ID);
+static ForceSensor rightLegFS(RIGHT_FORCE_DATA_PIN, RIGHT_FORCE_CLOCK_PIN);
+static Axis rightLeg("RIGHT_LEG", rightLegMotor, rightLegFS);
+
 
 // ---- State local to main -------------------------------------------------
 
 // ---- Log timers ----
-static uint32_t lastTelemetryMs = -TELEMETRY_INTERVAL_MS;
-static uint32_t lastIdleDiagMs = -IDLE_DIAG_INTERVAL_MS;
+// static uint32_t lastTelemetryMs = -TELEMETRY_INTERVAL_MS;
+// static uint32_t lastIdleDiagMs = -IDLE_DIAG_INTERVAL_MS;
 
-static double forceLeft = 0, forceRight = 0; // latest force in counts, positive = forward (0 if sensors off)
+// static double forceLeft = 0, forceRight = 0; // latest force in counts, positive = forward (0 if sensors off)
 
 
-static bool controlActive() { return stateArmed && stateCalibrated && stateEnabled; }
+// static bool controlActive() { return stateArmed && stateCalibrated && stateEnabled; }
 
 // // ===========================================================================
 // // Banner / help
@@ -49,52 +57,52 @@ static bool controlActive() { return stateArmed && stateCalibrated && stateEnabl
 // ===========================================================================
 // Periodic services
 // ===========================================================================
-static void serviceAxisStateTelemetry() {
-  uint32_t now = millis();
-  if (now - lastTelemetryMs < TELEMETRY_INTERVAL_MS)
-    return;
-  lastTelemetryMs = now;
+// static void serviceAxisStateTelemetry() {
+//   uint32_t now = millis();
+//   if (now - lastTelemetryMs < TELEMETRY_INTERVAL_MS)
+//     return;
+//   lastTelemetryMs = now;
 
-  MotorStatus leftMotorStatus{}, rightMotorStatus{};
-  double leftMotorAngle = NAN, rightMotorAngle = NAN;
-  bool lStatus = rsReadMotorStatus(LEFT_BUS_ID, leftMotorStatus);
-  bool rStatus = rsReadMotorStatus(RIGHT_BUS_ID, rightMotorStatus);
-  bool lAngle = rsReadAngleDeg(LEFT_BUS_ID, leftMotorAngle);
-  bool rAngle = rsReadAngleDeg(RIGHT_BUS_ID, rightMotorAngle);
+//   MotorStatus leftMotorStatus{}, rightMotorStatus{};
+//   double leftMotorAngle = NAN, rightMotorAngle = NAN;
+//   bool lStatus = rsReadMotorStatus(LEFT_BUS_ID, leftMotorStatus);
+//   bool rStatus = rsReadMotorStatus(RIGHT_BUS_ID, rightMotorStatus);
+//   bool lAngle = rsReadAngleDeg(LEFT_BUS_ID, leftMotorAngle);
+//   bool rAngle = rsReadAngleDeg(RIGHT_BUS_ID, rightMotorAngle);
 
-  Serial.printf(
-    "AXIS_STATE "
-    "L[state=%s moving=%d released=%d intent=%d speedCmd=%lu speedFB=%d raw=%.2f out=%.2f]\n"
-    "R[state=%s moving=%d released=%d intent=%d speedCmd=%lu speedFB=%d raw=%.2f out=%.2f]\n",
-    axisStateName(leftAxis), leftAxis.moving, leftAxis.released, leftAxis.intent,
-    (unsigned long)leftAxis.speed, lStatus ? leftMotorStatus.speed : 9999,
-    lAngle ? leftMotorAngle : NAN, lAngle ? outputDeg(leftAxis, leftMotorAngle) : NAN,
-    axisStateName(rightAxis), rightAxis.moving, rightAxis.released, rightAxis.intent,
-    (unsigned long)rightAxis.speed, rStatus ? rightMotorStatus.speed : 9999,
-    rAngle ? rightMotorAngle : NAN, rAngle ? outputDeg(rightAxis, rightMotorAngle) : NAN);
-}
+//   Serial.printf(
+//     "AXIS_STATE "
+//     "L[state=%s moving=%d released=%d intent=%d speedCmd=%lu speedFB=%d raw=%.2f out=%.2f]\n"
+//     "R[state=%s moving=%d released=%d intent=%d speedCmd=%lu speedFB=%d raw=%.2f out=%.2f]\n",
+//     axisStateName(leftAxis), leftAxis.moving, leftAxis.released, leftAxis.intent,
+//     (unsigned long)leftAxis.speed, lStatus ? leftMotorStatus.speed : 9999,
+//     lAngle ? leftMotorAngle : NAN, lAngle ? outputDeg(leftAxis, leftMotorAngle) : NAN,
+//     axisStateName(rightAxis), rightAxis.moving, rightAxis.released, rightAxis.intent,
+//     (unsigned long)rightAxis.speed, rStatus ? rightMotorStatus.speed : 9999,
+//     rAngle ? rightMotorAngle : NAN, rAngle ? outputDeg(rightAxis, rightMotorAngle) : NAN);
+// }
 
-static void serviceIdleDiagnostics() {
-  if (axesBusy() || (uint32_t)(millis() - lastIdleDiagMs) < IDLE_DIAG_MS)
-    return;
-  MotorStatus sl{}, sr{};
-  double al = 0, ar = 0;
+// static void serviceIdleDiagnostics() {
+//   if (axesBusy() || (uint32_t)(millis() - lastIdleDiagMs) < IDLE_DIAG_MS)
+//     return;
+//   MotorStatus sl{}, sr{};
+//   double al = 0, ar = 0;
 
-  if (DO_IDLE_DIAG) {
-    if (!rsReadMotorStatus(LEFT_BUS_ID, sl) || !rsReadMotorStatus(RIGHT_BUS_ID, sr) ||
-      !rsReadAngleDeg(LEFT_BUS_ID, al) || !rsReadAngleDeg(RIGHT_BUS_ID, ar)) {
-      latch("idle telemetry failure");
-    } else {
-      if (USE_FORCE_SENSORS)
-        log_d("FORCE_IDLE_DIAG L_force=%+.0f R_force=%+.0f Lraw=%.2f Rraw=%.2f Lstate=%s Rstate=%s\n",
-          forceLeft, forceRight, al, ar, axisStateName(leftAxis), axisStateName(rightAxis));
-      else
-        log_d("IDLE_DIAG (force sensors off) Lraw=%.2f Rraw=%.2f Lstate=%s Rstate=%s\n",
-          al, ar, axisStateName(leftAxis), axisStateName(rightAxis));
-    }
-  }
-  lastIdleDiagMs = millis();
-}
+//   if (DO_IDLE_DIAG) {
+//     if (!rsReadMotorStatus(LEFT_BUS_ID, sl) || !rsReadMotorStatus(RIGHT_BUS_ID, sr) ||
+//       !rsReadAngleDeg(LEFT_BUS_ID, al) || !rsReadAngleDeg(RIGHT_BUS_ID, ar)) {
+//       latch("idle telemetry failure");
+//     } else {
+//       if (USE_FORCE_SENSORS)
+//         log_d("FORCE_IDLE_DIAG L_force=%+.0f R_force=%+.0f Lraw=%.2f Rraw=%.2f Lstate=%s Rstate=%s\n",
+//           forceLeft, forceRight, al, ar, axisStateName(leftAxis), axisStateName(rightAxis));
+//       else
+//         log_d("IDLE_DIAG (force sensors off) Lraw=%.2f Rraw=%.2f Lstate=%s Rstate=%s\n",
+//           al, ar, axisStateName(leftAxis), axisStateName(rightAxis));
+//     }
+//   }
+//   lastIdleDiagMs = millis();
+// }
 
 // ===========================================================================
 // Arduino entry points
@@ -118,18 +126,11 @@ void setup() {
   // TODO : pins connectivity check
 
   reset();
+
 }
 
 void loop() {
   commandsPoll();
-  serviceStopChars(); // must run, or a stopped axis never leaves STOP_MEASURE
-  if (DO_PRINT_TELEMETRY)
-    serviceAxisStateTelemetry();
-  if (stateLatched)
-    return;
-
-  serviceUpdateForces();
-
-  // With sensors off nothing can start a jog; only the time-gated diagnostics run.
-  serviceIdleDiagnostics();
+  leftLeg.update();
+  rightLeg.update();
 }
